@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI SQL ASSISTANT ENGINE</title>
+    <style>
+        :root {
+            --dark-bg: #0b0f19;
+            --panel-bg: #131a2c;
+            --accent-blue: #3b82f6;
+            --accent-glow: #60a5fa;
+            --sql-green: #10b981;
+            --text-white: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-white);
+            min-height: 100vh;
+            display: flex;
+            padding: 2rem;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 2rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* SIDEBAR SCHEMA VIEWER */
+        .sidebar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+
+        .sidebar h3 { font-size: 1rem; color: var(--accent-glow); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;}
+        
+        .schema-table {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .table-name { color: var(--sql-green); font-weight: bold; margin-bottom: 0.25rem; text-transform: uppercase; }
+        .columns { color: var(--text-dim); text-transform: uppercase; }
+
+        /* MAIN DASHBOARD WORKSPACE */
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
+        header h1 span { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        header p { color: var(--text-dim); margin-top: 0.25rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.03em; }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-dim); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        input[type="password"], textarea {
+            width: 100%;
+            padding: 1rem;
+            background: var(--dark-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-white);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input[type="password"]:focus, textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* ACCENT ENGINE BUTTON */
+        .engine-btn {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white; border: none; padding: 1rem; font-size: 1rem; font-weight: 700;
+            border-radius: 10px; cursor: pointer; width: 100%; margin-top: 1rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transition: all 0.2s;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+
+        .engine-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4); }
+
+        /* OUTPUT WINDOW LAYOUT */
+        .output-box {
+            display: none;
+            background: #070a12;
+            border-left: 4px solid var(--sql-green);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .output-box pre { font-family: 'Courier New', Courier, monospace; color: var(--text-white); font-size: 1.05rem; line-height: 1.5; overflow-x: auto; }
+        
+        .copy-tag {
+            position: absolute; top: 1rem; right: 1rem;
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            color: var(--text-dim); padding: 0.25rem 0.5rem; font-size: 0.75rem;
+            border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: 600;
+        }
+        .copy-tag:hover { color: white; background: rgba(255,255,255,0.1); }
+
+        .loader { display: none; text-align: center; color: var(--accent-glow); font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    </style>
+</head>
+<body>
+
+<div class="workspace">
+    <!-- VISUAL SCHEMA CONTEXT PANEL -->
+    <div class="sidebar">
+        <h3>🗄️ DATABASE SCHEMA CONTEXT</h3>
+        <p style="color: var(--text-dim); font-size: 0.75rem; margin-bottom: 1rem; text-transform: uppercase; line-height: 1.4;">ACTIVE RELATIONAL TRANSLATION DATA STRUCTURES FOR PIPELINE MAPPING:</p>
+        
+        <div class="schema-table">
+            <div class="table-name">📈 TARGET_SALES</div>
+            <div class="columns">id, rep_id, total_amount, target_year, region</div>
+        </div>
+        <div class="schema-table">
+            <div class="table-name">👥 TEAM_MEMBERS</div>
+            <div class="columns">rep_id, full_name, role, date_joined</div>
+        </div>
+    </div>
+
+    <!-- MAIN ENGINE CONTROLS -->
+    <div class="main-panel">
+        <header>
+            <h1><span>AI SQL</span> ASSISTANT</h1>
+            <p>CONVERT NATURAL PLAIN ENGLISH STRINGS INTO ANSI SQL PRODUCTION QUERIES</p>
+        </header>
+
+        <div class="card" style="border-bottom: 3px solid var(--accent-blue);">
+            <label for="apiKey">🔑 GLOBAL AUTHENTICATION TOKEN</label>
+            <input type="password" id="apiKey" placeholder="PASTE YOUR PRIVATE CLAUDE API KEY HERE (sk-ant-...)">
+        </div>
+
+        <div class="card">
+            <label for="prompt">💡 ENTER PLAIN ENGLISH LOGIC PARAMETER DESCRIPTION</label>
+            <textarea id="prompt" placeholder="E.G., 'FIND ALL TEAM MEMBERS IN THE NORTH REGION WHO EXCEEDED 50000 IN TOTAL SALES DURING 2025, SORTED BY HIGHEST VOLUME'"></textarea>
+            
+            <button class="engine-btn" id="genBtn" onclick="compileSQL()">COMPILE COMPILER METRICS</button>
+            <div class="loader" id="loading">✨ COMPILING ANALYTICAL RELATIONAL SYNTAX PIPELINE...</div>
+        </div>
+
+        <!-- GENERATED CODE TARGET INTERFACE -->
+        <div class="card output-box" id="outputCard">
+            <label style="color: var(--sql-green);">🟢 COMPILED PRODUCTION SQL ARCHITECTURE</label>
+            <span class="copy-tag" onclick="copyCode()">COPY CODE</span>
+            <pre id="sqlOutput"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+async function compileSQL() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const prompt = document.getElementById('prompt').value.trim();
+    const genBtn = document.getElementById('genBtn');
+    const loading = document.getElementById('loading');
+    const outputCard = document.getElementById('outputCard');
+    const sqlOutput = document.getElementById('sqlOutput');
+
+    if (!apiKey || !prompt) {
+        alert("CRITICAL ERROR: AUTHENTICATION TOKEN AND INSTRUCTION INPUT ARE MANDATORY VALIDATION PARAMETERS.");
+        return;
+    }
+
+    genBtn.style.display = 'none';
+    loading.style.display = 'block';
+    outputCard.style.display = 'none';
+
+    const databaseSystemPrompt = `You are an expert Data Engineer. Convert the user's natural language into valid ANSI SQL. 
+    Use this exact database schema context to map parameters accurately:
+    - Table: TARGET_SALES (id, rep_id, total_amount, target_year, region)
+    - Table: TEAM_MEMBERS (rep_id, full_name, role, date_joined)
+    
+    Respond with ONLY the raw SQL execution string inside a single clean syntax layout. Do not write explanations outside the SQL string. Ensure structural optimization logic. Always capitalize SQL syntax like SELECT, FROM, WHERE, JOIN.`;
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20240620',
+                max_tokens: 1000,
+                system: databaseSystemPrompt,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || 'PIPELINE LOGIC COMPLIANCE FAULT.');
+        }
+
+        const data = await response.json();
+        let generatedQuery = data.content[0].text;
+
+        generatedQuery = generatedQuery.replace(/```sql/g, '').replace(/
+```/g, '').trim();
+
+        sqlOutput.textContent = generatedQuery;
+        outputCard.style.display = 'block';
+
+    } catch (err) {
+        alert("COMPILER FAULT DETECTED: " + err.message.toUpperCase());
+    } finally {
+        genBtn.style.display = 'block';
+        loading.style.display = 'none';
+    }
+}
+
+function copyCode() {
+    const codeText = document.getElementById('sqlOutput').textContent;
+    navigator.clipboard.writeText(codeText);
+    alert("SUCCESS: PARSED CODE COPIED TO SYSTEM CLIPBOARD REGISTER.");
+}
+</script>
+</body>
+</html>
