@@ -5,175 +5,347 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI SQL ASSISTANT ENGINE</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
         :root {
-            --dark-bg: #0b0f19;
-            --panel-bg: #131a2c;
-            --accent-blue: #3b82f6;
-            --accent-glow: #60a5fa;
-            --sql-green: #10b981;
-            --text-white: #f8fafc;
-            --text-dim: #94a3b8;
-            --border: #1e293b;
+            --bg-main: #060913;
+            --panel-bg: rgba(15, 23, 42, 0.65);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            
+            --accent-primary: #3b82f6;
+            --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+            --glow-green: #10b981;
+            --glow-error: #ef4444;
+            
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --text-glow: #93c5fd;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
 
         body {
-            background-color: var(--dark-bg);
-            color: var(--text-white);
+            background-color: var(--bg-main);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 45%);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
-            padding: 2rem;
+            padding: 2.5rem 1.5rem;
+            overflow-x: hidden;
         }
+
+        /* CUSTOM SCROLLBARS */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
         .workspace {
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 320px 1fr;
             gap: 2rem;
-            max-width: 1400px;
+            max-width: 1440px;
             width: 100%;
             margin: 0 auto;
         }
 
-        /* SIDEBAR SCHEMA VIEWER */
-        .sidebar {
+        /* GLASS CARD BASE ARCHITECTURE */
+        .glass-card {
             background: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.5rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 2rem;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .sidebar h3 { font-size: 1rem; color: var(--accent-glow); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;}
+        /* SIDEBAR / METADATA STRUCTURE */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: fit-content;
+        }
+
+        .sidebar h3 { 
+            font-size: 0.85rem; 
+            font-weight: 800; 
+            color: var(--text-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 0.12em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
         
-        .schema-table {
-            background: rgba(255,255,255,0.02);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-            font-family: monospace;
-            font-size: 0.85rem;
+        .schema-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 0.5rem;
         }
-        .table-name { color: var(--sql-green); font-weight: bold; margin-bottom: 0.25rem; text-transform: uppercase; }
-        .columns { color: var(--text-dim); text-transform: uppercase; }
 
-        /* MAIN DASHBOARD WORKSPACE */
+        .schema-table {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .table-name { 
+            color: var(--glow-green); 
+            font-weight: 700; 
+            font-size: 0.85rem; 
+            margin-bottom: 0.5rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.4rem;
+        }
+        
+        .columns { 
+            color: #94a3b8; 
+            font-size: 0.75rem; 
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        /* MAIN CONTENT AREA */
         .main-panel {
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
         }
 
-        header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; }
-        header h1 span { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        header p { color: var(--text-dim); margin-top: 0.25rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.03em; }
-
-        .card {
-            background: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        header {
+            margin-bottom: 0.5rem;
         }
 
-        label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-dim); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        header h1 { 
+            font-size: 2.5rem; 
+            font-weight: 900; 
+            letter-spacing: -0.04em; 
+            line-height: 1.1;
+        }
         
+        header h1 span { 
+            background: var(--accent-gradient); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+        
+        header p { 
+            color: var(--text-muted); 
+            margin-top: 0.5rem; 
+            font-size: 0.85rem; 
+            font-weight: 600;
+            letter-spacing: 0.08em; 
+            text-transform: uppercase;
+        }
+
+        /* TEXT INPUT FIELDS & LABELS */
+        label { 
+            display: block; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
+            color: var(--text-muted); 
+            margin-bottom: 0.75rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+
         input[type="password"], textarea {
             width: 100%;
-            padding: 1rem;
-            background: var(--dark-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text-white);
-            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 0.95rem;
             outline: none;
-            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        input[type="password"] {
+            padding: 1.1rem 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.1em;
+        }
+
+        textarea {
+            padding: 1.2rem;
+            min-height: 130px;
+            resize: vertical;
+            line-height: 1.6;
         }
 
         input[type="password"]:focus, textarea:focus {
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), inset 0 0 10px rgba(59, 130, 246, 0.1);
+            background: rgba(0, 0, 0, 0.45);
         }
 
-        /* ACCENT ENGINE BUTTON */
+        /* PREMIUM CHROMATIC INTERACTIVE BUTTON */
         .engine-btn {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            color: white; border: none; padding: 1rem; font-size: 1rem; font-weight: 700;
-            border-radius: 10px; cursor: pointer; width: 100%; margin-top: 1rem;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transition: all 0.2s;
-            text-transform: uppercase; letter-spacing: 0.05em;
+            background: var(--accent-gradient);
+            background-size: 200% auto;
+            color: #ffffff; 
+            border: none; 
+            padding: 1.1rem; 
+            font-size: 0.9rem; 
+            font-weight: 700;
+            border-radius: 12px; 
+            cursor: pointer; 
+            width: 100%; 
+            margin-top: 1.2rem;
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.3); 
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            text-transform: uppercase; 
+            letter-spacing: 0.08em;
         }
 
-        .engine-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4); }
+        .engine-btn:hover { 
+            background-position: right center;
+            transform: translateY(-2px); 
+            box-shadow: 0 15px 30px -5px rgba(139, 92, 246, 0.5); 
+        }
+        
+        .engine-btn:active {
+            transform: translateY(0);
+        }
 
-        /* OUTPUT WINDOW LAYOUT */
+        /* PIPELINE METRIC MODULES */
         .output-box {
             display: none;
-            background: #070a12;
-            border-left: 4px solid var(--sql-green);
-            border-radius: 12px;
-            padding: 1.5rem;
-            position: relative;
-            animation: fadeIn 0.3s ease;
+            border-left: 4px solid var(--glow-green);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(12px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
 
-        .output-box pre { font-family: 'Courier New', Courier, monospace; color: var(--text-white); font-size: 1.05rem; line-height: 1.5; overflow-x: auto; }
+        .output-box pre { 
+            font-family: 'JetBrains Mono', monospace; 
+            color: #e2e8f0; 
+            font-size: 0.95rem; 
+            line-height: 1.6; 
+            overflow-x: auto; 
+            white-space: pre-wrap;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1.2rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
         
         .copy-tag {
-            position: absolute; top: 1rem; right: 1rem;
-            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-            color: var(--text-dim); padding: 0.25rem 0.5rem; font-size: 0.75rem;
-            border-radius: 4px; cursor: pointer; text-transform: uppercase; font-weight: 600;
+            position: absolute; 
+            top: 1.8rem; 
+            right: 2rem;
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-glow); 
+            padding: 0.4rem 0.8rem; 
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 6px; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em;
         }
-        .copy-tag:hover { color: white; background: rgba(255,255,255,0.1); }
+        
+        .copy-tag:hover { 
+            color: #ffffff; 
+            background: rgba(255, 255, 255, 0.12); 
+            border-color: rgba(255, 255, 255, 0.2);
+        }
 
-        .loader { display: none; text-align: center; color: var(--accent-glow); font-weight: 700; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        /* LOADING SYSTEM KEYFRAMES */
+        .loader { 
+            display: none; 
+            text-align: center; 
+            color: var(--text-glow); 
+            font-weight: 700; 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 12px;
+            border: 1px dashed rgba(59, 130, 246, 0.2);
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; box-shadow: 0 0 0px rgba(59, 130, 246, 0); }
+            50% { opacity: 1; box-shadow: 0 0 15px rgba(59, 130, 246, 0.1); }
+        }
+
+        /* CONTAINER RESPONSIVENESS PARAMS */
+        @media (max-width: 900px) {
+            body { padding: 1.5rem 1rem; }
+            .workspace { grid-template-columns: 1fr; gap: 1.5rem; }
+        }
     </style>
 </head>
 <body>
 
 <div class="workspace">
-    <!-- VISUAL SCHEMA CONTEXT PANEL -->
-    <div class="sidebar">
-        <h3>🗄️ DATABASE SCHEMA CONTEXT</h3>
-        <p style="color: var(--text-dim); font-size: 0.75rem; margin-bottom: 1rem; text-transform: uppercase; line-height: 1.4;">ACTIVE RELATIONAL TRANSLATION DATA STRUCTURES FOR PIPELINE MAPPING:</p>
+    <div class="sidebar glass-card">
+        <h3><span>🗄️</span> SYSTEM SCHEMAS</h3>
+        <p style="color: var(--text-muted); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; line-height: 1.4; letter-spacing: 0.02em;">Data mapping models injected into engine context:</p>
         
-        <div class="schema-table">
-            <div class="table-name">📈 TARGET_SALES</div>
-            <div class="columns">id, rep_id, total_amount, target_year, region</div>
-        </div>
-        <div class="schema-table">
-            <div class="table-name">👥 TEAM_MEMBERS</div>
-            <div class="columns">rep_id, full_name, role, date_joined</div>
+        <div class="schema-container">
+            <div class="schema-table">
+                <div class="table-name">⚡ TARGET_SALES</div>
+                <div class="columns">id, rep_id, total_amount, target_year, region</div>
+            </div>
+            <div class="schema-table">
+                <div class="table-name">⚡ TEAM_MEMBERS</div>
+                <div class="columns">rep_id, full_name, role, date_joined</div>
+            </div>
         </div>
     </div>
 
-    <!-- MAIN ENGINE CONTROLS -->
     <div class="main-panel">
         <header>
             <h1><span>AI SQL</span> ASSISTANT</h1>
-            <p>CONVERT NATURAL PLAIN ENGLISH STRINGS INTO ANSI SQL PRODUCTION QUERIES</p>
+            <p>Convert Natural English into Valid ANSI Production SQL</p>
         </header>
 
-        <div class="card" style="border-bottom: 3px solid var(--accent-blue);">
-            <label for="apiKey">🔑 GLOBAL AUTHENTICATION TOKEN</label>
-            <input type="password" id="apiKey" placeholder="PASTE YOUR PRIVATE CLAUDE API KEY HERE (sk-ant-...)">
+        <div class="glass-card" style="box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.15);">
+            <label for="apiKey">🔑 Secure Anthropic Authorization Token</label>
+            <div class="input-wrapper">
+                <input type="password" id="apiKey" placeholder="sk-ant-...">
+            </div>
         </div>
 
-        <div class="card">
-            <label for="prompt">💡 ENTER PLAIN ENGLISH LOGIC PARAMETER DESCRIPTION</label>
-            <textarea id="prompt" placeholder="E.G., 'FIND ALL TEAM MEMBERS IN THE NORTH REGION WHO EXCEEDED 50000 IN TOTAL SALES DURING 2025, SORTED BY HIGHEST VOLUME'"></textarea>
+        <div class="glass-card">
+            <label for="prompt">💡 Conversion Prompt Parameter Specifications</label>
+            <textarea id="prompt" placeholder="Ex: 'Find full names of team members who joined after Jan 2024 with total sales over 75,000 in the North region...'"></textarea>
             
-            <button class="engine-btn" id="genBtn" onclick="compileSQL()">COMPILE COMPILER METRICS</button>
-            <div class="loader" id="loading">✨ COMPILING ANALYTICAL RELATIONAL SYNTAX PIPELINE...</div>
+            <button class="engine-btn" id="genBtn" onclick="compileSQL()">Compile Engine Metrics</button>
+            <div class="loader" id="loading">✨ Executing Remote Language Core Processing...</div>
         </div>
 
-        <!-- GENERATED CODE TARGET INTERFACE -->
-        <div class="card output-box" id="outputCard">
-            <label style="color: var(--sql-green);">🟢 COMPILED PRODUCTION SQL ARCHITECTURE</label>
-            <span class="copy-tag" onclick="copyCode()">COPY CODE</span>
+        <div class="glass-card output-box" id="outputCard">
+            <label style="color: var(--glow-green);">🟢 Compiled Relational Target Query Output</label>
+            <span class="copy-tag" onclick="copyCode()">Copy Code</span>
             <pre id="sqlOutput"></pre>
         </div>
     </div>
@@ -202,10 +374,11 @@ async function compileSQL() {
     - Table: TARGET_SALES (id, rep_id, total_amount, target_year, region)
     - Table: TEAM_MEMBERS (rep_id, full_name, role, date_joined)
     
-    Respond with ONLY the raw SQL execution string inside a single clean syntax layout. Do not write explanations outside the SQL string. Ensure structural optimization logic. Always capitalize SQL syntax like SELECT, FROM, WHERE, JOIN.`;
+    Respond with ONLY the raw SQL execution string inside a clean structure. Do not include markdown code block formatting (like \`\`\`sql) or explanations. Ensure strict optimization logic. Always capitalize SQL syntax like SELECT, FROM, WHERE, JOIN, GROUP BY, ORDER BY.`;
 
+    let response;
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
                 'x-api-key': apiKey,
@@ -220,7 +393,31 @@ async function compileSQL() {
                 messages: [{ role: 'user', content: prompt }]
             })
         });
+    } catch (e) {
+        try {
+            response = await fetch('https://cors-anywhere.herokuapp.com/https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-5-sonnet-20240620',
+                    max_tokens: 1000,
+                    system: databaseSystemPrompt,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+        } catch (err) {
+            alert("NETWORK TIMEOUT: Browser blocked network layers. Please click the button on https://cors-anywhere.herokuapp.com/ to open the session access tunnel.");
+            genBtn.style.display = 'block';
+            loading.style.display = 'none';
+            return;
+        }
+    }
 
+    try {
         if (!response.ok) {
             const err = await response.json();
             throw new Error(err.error?.message || 'PIPELINE LOGIC COMPLIANCE FAULT.');
@@ -229,8 +426,7 @@ async function compileSQL() {
         const data = await response.json();
         let generatedQuery = data.content[0].text;
 
-        generatedQuery = generatedQuery.replace(/```sql/g, '').replace(/
-```/g, '').trim();
+        generatedQuery = generatedQuery.replace(/```sql/gi, '').replace(/```/g, '').trim();
 
         sqlOutput.textContent = generatedQuery;
         outputCard.style.display = 'block';
